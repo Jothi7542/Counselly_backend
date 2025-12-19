@@ -6,7 +6,7 @@ from schemas.clients import ClientsCreate,ClientUpdate,Signup,Login
 
 clients_router=APIRouter(
     prefix="/clients",
-    tags=["clients"]
+    tags=["Clients"]
 )
 
 @clients_router.post("/signup")

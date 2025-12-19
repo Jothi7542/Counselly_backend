@@ -2,11 +2,12 @@ from fastapi import APIRouter , Depends
 from sqlalchemy.orm import Session
 from dependencies import get_db
 from models.counsellors import Counsellors
-from schemas.counsellors import CounsellorsCreate,CounsellorsUpdate,Signup,Login
+from schemas.counsellors import CounsellorsCreate,CounsellorsUpdate,Signup,Login , CounsellorsResponse
+from typing import List
 
 counsellors_router=APIRouter(
     prefix="/consellors",
-    tags=["counsellors"]
+    tags=["Counsellors"]
 )
 
 @counsellors_router.post("/signup")
@@ -135,3 +136,29 @@ def update_counsellors(counsellors_id: int, counsellors: CounsellorsUpdate, db: 
     db.commit()
     db.refresh(update_counsellor)
     return update_counsellor
+
+@counsellors_router.get("/search", response_model=List[CounsellorsResponse])
+def search_counsellors(
+    name: str | None = None,
+    specialization: str | None = None,
+    mode: str | None = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(Counsellors)
+
+    if name:
+        query = query.filter(
+            Counsellors.name.ilike(f"%{name}%")
+        )
+
+    if specialization:
+        query = query.filter(
+            Counsellors.specialization.ilike(f"%{specialization}%")
+        )
+
+    if mode:
+        query = query.filter(
+            Counsellors.mode.contains([mode])
+        )
+
+    return query.all()

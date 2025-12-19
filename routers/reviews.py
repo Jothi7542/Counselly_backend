@@ -25,6 +25,7 @@ def create_review(review: ReviewCreate, db: Session = Depends(get_db)):
     db.refresh(new_review)
     return new_review
 
+
 @reviews_router.get("/all", response_model=List[ReviewResponse])
 def get_all_reviews(db: Session = Depends(get_db)):
     return db.query(Reviews).filter(Reviews.is_active == True).all()

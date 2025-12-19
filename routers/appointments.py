@@ -6,7 +6,7 @@ from schemas.appointments import AppointmentsCreate, AppointmentUpdate
 
 appointments_router=APIRouter(
     prefix="/appointments",
-    tags=["appointments"]
+    tags=["Appointments"]
 )
 
 @appointments_router.post("/new_appointment")

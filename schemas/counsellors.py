@@ -64,3 +64,16 @@ class Signup(BaseModel):
     profile_image: str 
 
 
+class CounsellorsResponse(BaseModel):
+    counsellors_id: int
+    name: str
+    email: str
+    specialization: str
+    experience: int
+    expertise: List[str]
+    mode: List[str]
+    speaks: List[str]
+    status: str
+
+    class Config:
+        from_attributes = True
