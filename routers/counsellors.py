@@ -1,49 +1,138 @@
-from fastapi import APIRouter , Depends
+from fastapi import APIRouter , Depends ,HTTPException, File, UploadFile
 from sqlalchemy.orm import Session
 from dependencies import get_db
 from models.counsellors import Counsellors
 from schemas.counsellors import CounsellorsCreate,CounsellorsUpdate,Signup,Login , CounsellorsResponse
 from typing import List
+from datetime import date
+from sqlalchemy import distinct
+from sqlalchemy import func
+from models.appointments import Appointments
+from models.clients import Clients
+from models.appointments import AppointmentStatus
+from models.availability import Availability
+from models.reviews import Reviews
+from utils.auth import hash_password, verify_password, create_access_token
+from utils.cloudinary_utils import upload_image
+import shutil
+import tempfile
+import os
+
 
 counsellors_router=APIRouter(
-    prefix="/consellors",
+    prefix="/counsellors",
     tags=["Counsellors"]
 )
 
+@counsellors_router.post("/upload-profile-image/{counsellor_id}")
+async def upload_profile_image(counsellor_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    counsellor = db.query(Counsellors).filter(Counsellors.counsellors_id == counsellor_id).first()
+    if not counsellor:
+        raise HTTPException(status_code=404, detail="Counsellor not found")
+    
+    try:
+        # Create a temporary file to store the upload
+        suffix = os.path.splitext(file.filename)[1]
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            shutil.copyfileobj(file.file, tmp)
+            tmp_path = tmp.name
+        
+        # Upload to Cloudinary
+        image_url = upload_image(tmp_path)
+        
+        # Remove temporary file
+        os.remove(tmp_path)
+        
+        if not image_url:
+            raise HTTPException(status_code=500, detail="Failed to upload image to Cloudinary")
+        
+        # Update counsellor database
+        counsellor.profile_image = image_url
+        db.commit()
+        db.refresh(counsellor)
+        
+        return {"image_url": image_url, "message": "Profile image updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
+
 @counsellors_router.post("/signup")
 def signup(counsellors: Signup, db: Session = Depends(get_db)):
+    # Check if email already exists
+    existing_counsellor = db.query(Counsellors).filter(Counsellors.email == counsellors.email).first()
+    if existing_counsellor:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
     signup = Counsellors(
         name=counsellors.name,
         email=counsellors.email,
-        password=counsellors.password,
-        role=counsellors.role,
+        password=hash_password(counsellors.password),  # Hash the password
         age=counsellors.age,
         gender=counsellors.gender,
         phone_number=counsellors.phone_number,
         speaks=counsellors.speaks,
-        specialization=counsellors.specialization,
         experience=counsellors.experience,
-        expertise=counsellors.expertise,
-        mode=counsellors.mode,
-        about=counsellors.about,
         address=counsellors.address,
-        profile_image=counsellors.profile_image
+        specialization=counsellors.specialization,
+        profile_image=counsellors.profile_image,
+        about=counsellors.about
     )
     db.add(signup)
     db.commit()
     db.refresh(signup)
-    return signup
+    
+    # Create access token
+    access_token = create_access_token(
+        data={"sub": str(signup.counsellors_id), "role": "counsellor"}
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "counsellors_id": signup.counsellors_id,
+            "name": signup.name,
+            "email": signup.email,
+            "profile_image": signup.profile_image,
+            "role": "counsellor"
+        }
+    }
 
 @counsellors_router.post("/login")
-def login(counsellors:Login, db:Session=Depends(get_db)):
-    login=Counsellors(
-        email=counsellors.email,
-        password=counsellors.password
+def login(data: Login, db: Session = Depends(get_db)):
+    counsellor = db.query(Counsellors).filter(
+        Counsellors.email == data.email
+    ).first()
+
+    if not counsellor:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Verify password
+    if not verify_password(data.password, counsellor.password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Create access token
+    access_token = create_access_token(
+        data={"sub": str(counsellor.counsellors_id), "role": "counsellor"}
     )
-    db.add(login)
-    db.commit()
-    db.refresh(login)
-    return login
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "counsellors_id": counsellor.counsellors_id,
+            "name": counsellor.name,
+            "email": counsellor.email,
+            "age": counsellor.age,
+            "gender": counsellor.gender,
+            "phone_number": counsellor.phone_number,
+            "speaks": counsellor.speaks,
+            "experience": counsellor.experience,
+            "address": counsellor.address,
+            "profile_image": counsellor.profile_image,
+            "role": "counsellor"
+        }
+    }
+
 
 @counsellors_router.post("/create")
 def add_counsellors(counsellors: CounsellorsCreate, db: Session = Depends(get_db)):
@@ -51,8 +140,7 @@ def add_counsellors(counsellors: CounsellorsCreate, db: Session = Depends(get_db
         counsellors_id=counsellors.counsellors_id,
         name=counsellors.name,
         email=counsellors.email,
-        password=counsellors.password,
-        role=counsellors.role,
+        password=hash_password(counsellors.password),
         age=counsellors.age,
         gender=counsellors.gender,
         phone_number=counsellors.phone_number,
@@ -63,8 +151,6 @@ def add_counsellors(counsellors: CounsellorsCreate, db: Session = Depends(get_db
         about=counsellors.about,
         speaks=counsellors.speaks,
         profile_image=counsellors.profile_image,
-        availability=counsellors.availability,
-        slot=counsellors.slot,
         status=counsellors.status,
         address=counsellors.address,
         created_at=counsellors.created_at
@@ -75,67 +161,23 @@ def add_counsellors(counsellors: CounsellorsCreate, db: Session = Depends(get_db
     return new_counsellors
 
 
-@counsellors_router.get("/")
+@counsellors_router.get("/", response_model=List[CounsellorsResponse])
 def all_counsellors(db:Session=Depends(get_db)):
-    already_counsellors=db.query(Counsellors).all()
+    counsellors = db.query(Counsellors).all()
+    
+    for c in counsellors:
+        stats = db.query(
+            func.count(Reviews.review_id).label("count"),
+            func.avg(Reviews.rating).label("avg")
+        ).filter(
+            Reviews.counsellors_id == c.counsellors_id
+        ).first()
+        
+        c.reviews_count = stats.count or 0
+        c.rating = round(stats.avg, 1) if stats.avg else 0.0
+        
     db.close()
-    return already_counsellors
-
-@counsellors_router.get("/{counsellor_id}")
-def counsellors_id(counsellor_id:int , db:Session=Depends(get_db)):
-    already_counsellors=db.query(Counsellors).filter(Counsellors.counsellors_id==counsellor_id).first()
-    db.close()
-    return already_counsellors
-
-
-@counsellors_router.put("/updateCounsellors/{counsellors_id}")
-def update_counsellors(counsellor_id:int , counsellors:CounsellorsUpdate, db:Session=Depends(get_db)):
-    update_counsellors=db.query(Counsellors).filter(Counsellors.counsellors_id == counsellor_id).first()
-    if update_counsellors:
-        update_counsellors.name=counsellors.name
-        update_counsellors.email=counsellors.email
-        update_counsellors.password=counsellors.password
-        update_counsellors.age=counsellors.age
-        update_counsellors.gender=counsellors.gender
-        update_counsellors.phone_number=counsellors.phone_number
-        update_counsellors.specialization=counsellors.specialization
-        update_counsellors.address=counsellors.address
-        update_counsellors.experience=counsellors.experience
-        update_counsellors.expertise=counsellors.expertise
-        update_counsellors.mode=counsellors.mode
-        update_counsellors.about=counsellors.about
-        update_counsellors.speaks=counsellors.speaks
-        update_counsellors.profile_image=counsellors.profile_image
-        update_counsellors.availability=counsellors.availability
-        update_counsellors.slot=counsellors.slot
-        db.commit()
-        db.refresh(update_counsellors)
-        db.close()
-        return update_counsellors
-    return {"message": "Counsellors not found"}
-
-
-@counsellors_router.delete("/deleteCounsellors/{counsellors_id}")
-def delete_counsellors(counsellors_id:int , db:Session=Depends(get_db)):
-    delete_counsellors=db.query(Counsellors).filter(Counsellors.counsellors_id==counsellors_id).first()
-    if delete_counsellors:
-        db.delete(delete_counsellors)
-        db.commit()
-        return {"message": "Counsellors deleted successfully"}
-    return {"message": "Counsellors not found"}
-
-@counsellors_router.put("/updateCounsellors/{counsellors_id}")
-def update_counsellors(counsellors_id: int, counsellors: CounsellorsUpdate, db: Session = Depends(get_db)):
-    update_counsellor = db.query(Counsellors).filter(Counsellors.counsellors_id == counsellors_id ).first()
-
-    if not update_counsellor:
-        return {"message": "Counsellor not found"}
-
-    update_counsellor.expertise = counsellors.expertise    
-
-    db.commit()
-    db.refresh(update_counsellor)
-    return update_counsellor
+    return counsellors
 
 @counsellors_router.get("/search", response_model=List[CounsellorsResponse])
 def search_counsellors(
@@ -161,4 +203,169 @@ def search_counsellors(
             Counsellors.mode.contains([mode])
         )
 
-    return query.all()
+    results = query.all()
+    
+    # Attach review stats to each counsellor
+    for counsellor in results:
+        stats = db.query(
+            func.count(Reviews.review_id).label("count"),
+            func.avg(Reviews.rating).label("avg")
+        ).filter(
+            Reviews.counsellors_id == counsellor.counsellors_id
+        ).first()
+        
+        counsellor.reviews_count = stats.count or 0
+        counsellor.rating = round(stats.avg, 1) if stats.avg else 0.0
+
+    return results
+
+@counsellors_router.get("/{counsellor_id}")
+def counsellors_id(counsellor_id:int , db:Session=Depends(get_db)):
+    already_counsellors=db.query(Counsellors).filter(Counsellors.counsellors_id==counsellor_id).first()
+    db.close()
+    return already_counsellors
+
+@counsellors_router.put("/update/{counsellors_id}")
+def update_counsellor(
+    counsellors_id: int,
+    data: CounsellorsUpdate,
+    db: Session = Depends(get_db)
+):
+    counsellor = db.query(Counsellors).filter(
+        Counsellors.counsellors_id == counsellors_id
+    ).first()
+
+    if not counsellor:
+        return {"message": "Counsellor not found"}
+
+    update_data = data.dict(exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(counsellor, field, value)
+
+    db.commit()
+    db.refresh(counsellor)
+    return counsellor
+
+@counsellors_router.delete("/deleteCounsellors/{counsellor_id}")
+def delete_counsellor(
+    counsellor_id: int,
+    db: Session = Depends(get_db)
+):
+    counsellor = db.query(Counsellors).filter(
+        Counsellors.counsellors_id == counsellor_id
+    ).first()
+
+    if not counsellor:
+        raise HTTPException(status_code=404, detail="Counsellor not found")
+
+   
+    db.query(Availability).filter(
+        Availability.counsellors_id == counsellor_id
+    ).delete()
+
+    db.query(Reviews).filter(
+        Reviews.counsellors_id == counsellor_id
+    ).delete()
+
+  
+    db.delete(counsellor)
+    db.commit()
+
+    return {"message": "Counsellor deleted successfully"}
+
+
+
+@counsellors_router.get("/{counsellor_id}/stats")
+def counsellor_stats(counsellor_id: int, db: Session = Depends(get_db)):
+    today = date.today()
+
+    total_sessions = db.query(Appointments).filter(
+        Appointments.counsellors_id == counsellor_id
+    ).count()
+
+    upcoming_sessions = db.query(Appointments).filter(
+        Appointments.counsellors_id == counsellor_id,
+        Appointments.status == "booked",
+        Appointments.date >= today
+    ).count()
+
+    total_clients = db.query(
+        distinct(Appointments.clients_id)
+    ).filter(
+        Appointments.counsellors_id == counsellor_id
+    ).count()
+
+    db.close()
+
+    return {
+        "total_sessions": total_sessions,
+        "upcoming_sessions": upcoming_sessions,
+        "total_clients": total_clients
+    }
+@counsellors_router.get("/{counsellor_id}/upcoming-sessions")
+def upcoming_sessions(counsellor_id: int, db: Session = Depends(get_db)):
+
+    return (
+        db.query(
+            Appointments.date,
+            Appointments.time,
+            Clients.name.label("client_name"),
+            Appointments.mode,
+            Appointments.counsellor_response
+        )
+        .join(Clients, Clients.clients_id == Appointments.clients_id)
+        .filter(
+            Appointments.counsellors_id == counsellor_id,
+            Appointments.status == AppointmentStatus.booked.value
+        )
+        .all()
+    )
+
+@counsellors_router.get("/{counsellor_id}/completed-sessions")
+def completed_sessions(counsellor_id: int, db: Session = Depends(get_db)):
+
+    return (
+        db.query(
+            Appointments.date,
+            Appointments.time,
+            Clients.name.label("client_name"),
+            Appointments.mode,
+            Appointments.status
+        )
+        .join(Clients)
+        .filter(
+            Appointments.counsellors_id == counsellor_id,
+            Appointments.status == AppointmentStatus.completed.value
+        )
+        .all()
+    )
+
+@counsellors_router.get("/{counsellor_id}/card")
+def counsellor_card(counsellor_id: int, db: Session = Depends(get_db)):
+
+    counsellor = db.query(Counsellors).filter(
+        Counsellors.counsellors_id == counsellor_id
+    ).first()
+
+    if not counsellor:
+        raise HTTPException(status_code=404, detail="Counsellor not found")
+
+    # ⭐ rating & reviews
+    review_stats = db.query(
+        func.count(Reviews.id).label("reviews_count"),
+        func.coalesce(func.avg(Reviews.rating), 0).label("avg_rating")
+    ).filter(
+        Reviews.counsellors_id == counsellor_id
+    ).first()
+
+    return {
+        "name": counsellor.name,
+        "profile_image": counsellor.profile_image,
+        "experience": f"{counsellor.experience} years of experience",
+        "rating": round(review_stats.avg_rating, 1),
+        "reviews_count": review_stats.reviews_count,
+        "speaks": counsellor.speaks,
+        "mode": counsellor.mode,
+        "expertise": counsellor.expertise
+    }

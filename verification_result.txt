@@ -1,0 +1,11 @@
+Name            | Profile Image                            | Email
+--------------------------------------------------------------------------------
+Akshaya         | ../Assets/Wireframep1.webp               | akshaya@counselly.com
+Meera           | ../Assets/wireframep2.webp               | meera@counselly.com
+Priya           | ../Assets/wire6.webp                     | priya@counselly.com
+Samikshaa       | ../Assets/wire7.webp                     | sam@counselly.com
+Ashwini         | ../Assets/wire8.webp                     | ashwini@counselly.com
+Jai shree       | ../Assets/wire9.webp                     | jai@counselly.com
+Kaviya          | ../Assets/wire10.webp                    | kaviya@counselly.com
+Sridevi         | ../Assets/wire5.webp                     | sridevi@counselly.com
+Yuvasree        | ../Assets/Wire4.webp                     | yuva@counselly.com

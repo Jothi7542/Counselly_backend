@@ -17,25 +17,27 @@ class ClientsCreate(BaseModel):
     created_at:datetime
 
 class ClientUpdate(BaseModel):
-    name: str 
-    email:str
-    role: str 
-    age: int 
-    phone_number: str
-    language:List[str]
-    status: str 
-    address:str
+    name: str | None = None
+    email: str | None = None
+    role: str | None = None
+    age: int | None = None
+    gender: str | None = None
+    phone_number: str | None = None
+    language: List[str] | None = None
+    status: str | None = None
+    address: str | None = None
+    profile_image: str | None = None
 
 class Signup(BaseModel):
     name: str
     email: str
     password: str
-    role: str
     age: int
     gender: str
     phone_number: str
     language:List[str]
     address:str
+    profile_image: str | None = None
 
 class Login(BaseModel):
     email: str
