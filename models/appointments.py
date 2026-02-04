@@ -4,9 +4,11 @@ from sqlalchemy.orm import relationship
 import enum
 
 class AppointmentStatus(enum.Enum):
+    pending = "pending"
     booked = "booked"
     cancelled = "cancelled"
     completed = "completed"
+    rejected = "rejected"
 
 class CounsellorResponse(enum.Enum):
     pending = "pending"

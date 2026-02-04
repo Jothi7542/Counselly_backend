@@ -176,7 +176,6 @@ def all_counsellors(db:Session=Depends(get_db)):
         c.reviews_count = stats.count or 0
         c.rating = round(stats.avg, 1) if stats.avg else 0.0
         
-    db.close()
     return counsellors
 
 @counsellors_router.get("/search", response_model=List[CounsellorsResponse])
@@ -222,7 +221,6 @@ def search_counsellors(
 @counsellors_router.get("/{counsellor_id}")
 def counsellors_id(counsellor_id:int , db:Session=Depends(get_db)):
     already_counsellors=db.query(Counsellors).filter(Counsellors.counsellors_id==counsellor_id).first()
-    db.close()
     return already_counsellors
 
 @counsellors_router.put("/update/{counsellors_id}")
@@ -296,8 +294,6 @@ def counsellor_stats(counsellor_id: int, db: Session = Depends(get_db)):
         Appointments.counsellors_id == counsellor_id
     ).count()
 
-    db.close()
-
     return {
         "total_sessions": total_sessions,
         "upcoming_sessions": upcoming_sessions,
@@ -306,40 +302,108 @@ def counsellor_stats(counsellor_id: int, db: Session = Depends(get_db)):
 @counsellors_router.get("/{counsellor_id}/upcoming-sessions")
 def upcoming_sessions(counsellor_id: int, db: Session = Depends(get_db)):
 
-    return (
-        db.query(
-            Appointments.date,
-            Appointments.time,
-            Clients.name.label("client_name"),
-            Appointments.mode,
-            Appointments.counsellor_response
+    try:
+        results = (
+            db.query(
+                Appointments.appointment_id,
+                Appointments.date,
+                Appointments.time,
+                Clients.name.label("client_name"),
+                Appointments.mode,
+                Appointments.counsellor_response
+            )
+            .join(Clients, Clients.clients_id == Appointments.clients_id)
+            .filter(
+                Appointments.counsellors_id == counsellor_id,
+                Appointments.status == AppointmentStatus.booked.value
+            )
+            .all()
         )
-        .join(Clients, Clients.clients_id == Appointments.clients_id)
-        .filter(
-            Appointments.counsellors_id == counsellor_id,
-            Appointments.status == AppointmentStatus.booked.value
+        return [
+            {
+                "appointment_id": res.appointment_id,
+                "date": str(res.date),
+                "time": res.time,
+                "client_name": res.client_name,
+                "mode": res.mode,
+                "counsellor_response": res.counsellor_response
+            }
+            for res in results
+        ]
+    except Exception as e:
+        print(f"ERROR in upcoming_sessions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@counsellors_router.get("/{counsellor_id}/requests")
+def session_requests(counsellor_id: int, db: Session = Depends(get_db)):
+    try:
+        results = (
+            db.query(
+                Appointments.appointment_id,
+                Appointments.date,
+                Appointments.time,
+                Clients.name.label("client_name"),
+                Appointments.mode,
+                Appointments.counsellor_response,
+                Appointments.status
+            )
+            .join(Clients, Clients.clients_id == Appointments.clients_id)
+            .filter(
+                Appointments.counsellors_id == counsellor_id,
+                Appointments.status == AppointmentStatus.pending.value
+            )
+            .all()
         )
-        .all()
-    )
+        return [
+            {
+                "appointment_id": res.appointment_id,
+                "date": str(res.date),
+                "time": res.time,
+                "client_name": res.client_name,
+                "mode": res.mode,
+                "counsellor_response": res.counsellor_response,
+                "status": res.status
+            }
+            for res in results
+        ]
+
+    except Exception as e:
+        print(f"ERROR: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @counsellors_router.get("/{counsellor_id}/completed-sessions")
 def completed_sessions(counsellor_id: int, db: Session = Depends(get_db)):
-
-    return (
-        db.query(
-            Appointments.date,
-            Appointments.time,
-            Clients.name.label("client_name"),
-            Appointments.mode,
-            Appointments.status
+    try:
+        results = (
+            db.query(
+                Appointments.appointment_id,
+                Appointments.date,
+                Appointments.time,
+                Clients.name.label("client_name"),
+                Appointments.mode,
+                Appointments.status
+            )
+            .join(Clients, Clients.clients_id == Appointments.clients_id)
+            .filter(
+                Appointments.counsellors_id == counsellor_id,
+                Appointments.status == AppointmentStatus.completed.value
+            )
+            .all()
         )
-        .join(Clients)
-        .filter(
-            Appointments.counsellors_id == counsellor_id,
-            Appointments.status == AppointmentStatus.completed.value
-        )
-        .all()
-    )
+        return [
+            {
+                "appointment_id": res.appointment_id,
+                "date": str(res.date),
+                "time": res.time,
+                "client_name": res.client_name,
+                "mode": res.mode,
+                "status": res.status
+            }
+            for res in results
+        ]
+    except Exception as e:
+        print(f"ERROR in completed_sessions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @counsellors_router.get("/{counsellor_id}/card")
 def counsellor_card(counsellor_id: int, db: Session = Depends(get_db)):

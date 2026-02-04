@@ -54,7 +54,7 @@ def create_appointment(
         therapy_type=data.therapy_type,
         reason=data.reason,
 
-        status=AppointmentStatus.booked.value,         
+        status=AppointmentStatus.pending.value,         
         counsellor_response=CounsellorResponse.pending.value
     )
 
@@ -130,7 +130,8 @@ def counsellor_response(
     appointment.counsellor_response = data.response
 
    
-    if data.response == CounsellorResponse.rejected.value:
+    if data.response in [CounsellorResponse.rejected.value, "cancelled"]:
+        appointment.status = AppointmentStatus.rejected.value if data.response == CounsellorResponse.rejected.value else AppointmentStatus.cancelled.value
         availability = db.query(Availability).filter(
             Availability.availability_id == appointment.availability_id
         ).first()
@@ -155,6 +156,9 @@ def counsellor_response(
                 )
         except Exception as e:
             print(f"Failed to send rejection email: {e}")
+            
+    elif data.response == CounsellorResponse.accepted.value:
+        appointment.status = AppointmentStatus.booked.value
 
     db.commit()
     db.refresh(appointment)
