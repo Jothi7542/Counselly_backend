@@ -8,6 +8,7 @@ from routers.appointments import appointments_router
 from routers.messages import messages_router
 from routers.reviews import reviews_router
 from routers.availability import availability_router
+from routers.admins import admins_router
 
 # 🔹 Create tables
 Base.metadata.create_all(bind=engine)
@@ -31,6 +32,7 @@ app.include_router(appointments_router)
 app.include_router(messages_router)
 app.include_router(reviews_router)
 app.include_router(availability_router)
+app.include_router(admins_router)
 
 # 🔹 Health check
 @app.get("/")

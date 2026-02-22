@@ -94,6 +94,7 @@ def all_counsellors(db: Session = Depends(get_db)):
         func.count(Reviews.review_id).label("reviews_count"),
         func.coalesce(func.avg(Reviews.rating), 0).label("rating")
     ).outerjoin(Reviews, Reviews.counsellors_id == Counsellors.counsellors_id)\
+     .filter(Counsellors.status == "active")\
      .group_by(Counsellors.counsellors_id)\
      .all()
 
@@ -118,7 +119,8 @@ def search_counsellors(
         Counsellors,
         func.count(Reviews.review_id).label("reviews_count"),
         func.coalesce(func.avg(Reviews.rating), 0).label("rating")
-    ).outerjoin(Reviews, Reviews.counsellors_id == Counsellors.counsellors_id)
+    ).outerjoin(Reviews, Reviews.counsellors_id == Counsellors.counsellors_id)\
+     .filter(Counsellors.status == "active")
 
     if name:
         query = query.filter(Counsellors.name.ilike(f"%{name}%"))

@@ -19,6 +19,6 @@ class Counsellors(Base):
     speaks=Column(JSON)
     profile_image = Column(String)
     availability= Column(String, default="available")
-    status = Column(String, default="active")
+    status = Column(String, default="pending")
     address = Column(String)
     created_at=Column(Date , default=utcnow)  
