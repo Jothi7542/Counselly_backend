@@ -14,7 +14,7 @@ admins_router = APIRouter(
 def signup(data: AdminCreate, db: Session = Depends(get_db)):
     # Check if email exists
     existing = db.query(Admins).filter(Admins.email == data.email).first()
-    if existing:
+    if existing:WW
         raise HTTPException(status_code=400, detail="Email already registered")
 
     new_admin = Admins(
