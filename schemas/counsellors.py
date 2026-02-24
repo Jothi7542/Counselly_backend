@@ -59,14 +59,14 @@ class Signup(BaseModel):
 
 class CounsellorsResponse(BaseModel):
     counsellors_id: int
-    name: str
-    email: str
-    specialization: str
-    experience: str
+    name: str | None = None
+    email: str | None = None
+    specialization: str | None = "Counselling Psychologist"
+    experience: str | None = "0"
     expertise: List[str] | None = []
     mode: List[str] | None = []
     speaks: List[str] | None = []
-    status: str
+    status: str | None = "pending"
     profile_image: str | None = None
     rating: float | None = 0.0
     reviews_count: int | None = 0
