@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from dependencies import get_db
 from models.counsellors import Counsellors
 from schemas.counsellors import CounsellorsCreate,CounsellorsUpdate,Signup,Login , CounsellorsResponse, TokenResponse
-from auth_utils import get_password_hash, verify_password, create_access_token
 from typing import List
 from datetime import date
 from sqlalchemy import distinct
@@ -280,9 +279,6 @@ def counsellor_stats(counsellor_id: int, db: Session = Depends(get_db)):
     }
 @counsellors_router.get("/{counsellor_id}/upcoming-sessions")
 def upcoming_sessions(counsellor_id: int, db: Session = Depends(get_db)):
-
-@counsellors_router.get("/{counsellor_id}/upcoming-sessions")
-def upcoming_sessions(counsellor_id: int, db: Session = Depends(get_db)):
     try:
         results = (
             db.query(
@@ -421,9 +417,8 @@ def counsellor_card(counsellor_id: int, db: Session = Depends(get_db)):
     if not counsellor:
         raise HTTPException(status_code=404, detail="Counsellor not found")
 
-    # ⭐ rating & reviews
     review_stats = db.query(
-        func.count(Reviews.id).label("reviews_count"),
+        func.count(Reviews.review_id).label("reviews_count"),
         func.coalesce(func.avg(Reviews.rating), 0).label("avg_rating")
     ).filter(
         Reviews.counsellors_id == counsellor_id
