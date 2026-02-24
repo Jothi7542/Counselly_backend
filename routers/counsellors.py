@@ -74,6 +74,8 @@ def signup(counsellors: Signup, db: Session = Depends(get_db)):
         experience=counsellors.experience,
         address=counsellors.address,
         specialization=getattr(counsellors, 'specialization', "Counselling Psychologist"),
+        expertise=getattr(counsellors, 'expertise', []),
+        mode=getattr(counsellors, 'mode', ["Online"]),
         profile_image=getattr(counsellors, 'profile_image', None),
         about=getattr(counsellors, 'about', None)
     )

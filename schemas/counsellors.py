@@ -63,9 +63,9 @@ class CounsellorsResponse(BaseModel):
     email: str
     specialization: str
     experience: str
-    expertise: List[str]
-    mode: List[str]
-    speaks: List[str]
+    expertise: List[str] | None = []
+    mode: List[str] | None = []
+    speaks: List[str] | None = []
     status: str
     profile_image: str | None = None
     rating: float | None = 0.0
