@@ -5,8 +5,7 @@ from models.counsellors import Counsellors
 from schemas.counsellors import CounsellorsCreate,CounsellorsUpdate,Signup,Login , CounsellorsResponse, TokenResponse
 from typing import List
 from datetime import date
-from sqlalchemy import distinct
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from models.appointments import Appointments
 from models.clients import Clients
 from models.appointments import AppointmentStatus
@@ -150,9 +149,8 @@ def all_counsellors(db: Session = Depends(get_db)):
     results = db.query(
         Counsellors,
         func.count(Reviews.review_id).label("reviews_count"),
-        func.coalesce(func.avg(Reviews.rating), 0).label("rating")
-    ).outerjoin(Reviews, Reviews.counsellors_id == Counsellors.counsellors_id)\
-     .filter(Counsellors.status.in_(["active", "pending"]))\
+     ).outerjoin(Reviews, Reviews.counsellors_id == Counsellors.counsellors_id)\
+     .filter(or_(Counsellors.status.in_(["active", "pending"]), Counsellors.status == None))\
      .group_by(Counsellors.counsellors_id)\
      .all()
 
@@ -175,9 +173,8 @@ def search_counsellors(
     query = db.query(
         Counsellors,
         func.count(Reviews.review_id).label("reviews_count"),
-        func.coalesce(func.avg(Reviews.rating), 0).label("rating")
     ).outerjoin(Reviews, Reviews.counsellors_id == Counsellors.counsellors_id)\
-     .filter(Counsellors.status.in_(["active", "pending"]))
+     .filter(or_(Counsellors.status.in_(["active", "pending"]), Counsellors.status == None))
 
     if name:
         query = query.filter(Counsellors.name.ilike(f"%{name}%"))
