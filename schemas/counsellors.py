@@ -61,6 +61,7 @@ class CounsellorsResponse(BaseModel):
     counsellors_id: int
     name: str | None = None
     email: str | None = None
+    role: str | None = "counsellor"
     specialization: str | None = "Counselling Psychologist"
     experience: str | None = "0"
     expertise: List[str] | None = []

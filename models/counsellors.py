@@ -11,6 +11,7 @@ class Counsellors(Base):
     age=Column(Integer)
     gender=Column(String)
     phone_number=Column(String)
+    role=Column(String, default="counsellor")
     specialization=Column(String)
     experience=Column(String)
     expertise=Column(JSON)
