@@ -18,11 +18,15 @@ try:
     from sqlalchemy import text
     from db.database import SessionLocal
     db_sync = SessionLocal()
+    # Fix counsellors
     db_sync.execute(text("ALTER TABLE counsellors ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'counsellor';"))
     db_sync.execute(text("UPDATE counsellors SET role = 'counsellor' WHERE role IS NULL;"))
+    # Fix clients
+    db_sync.execute(text("ALTER TABLE clients ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'client';"))
+    db_sync.execute(text("UPDATE clients SET role = 'client' WHERE role IS NULL;"))
     db_sync.commit()
     db_sync.close()
-    print("✅ Database schema synchronized")
+    print("✅ Database schema synchronized for counsellors and clients")
 except Exception as e:
     print(f"⚠️ Schema sync hint: {e}")
 
