@@ -68,6 +68,7 @@ class CounsellorsResponse(BaseModel):
     speaks: List[str] | None = []
     status: str | None = "pending"
     profile_image: str | None = None
+    about: str | None = None
     rating: float | None = 0.0
     reviews_count: int | None = 0
 
