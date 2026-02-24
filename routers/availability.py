@@ -16,6 +16,8 @@ def create_availability(data: AvailabilityCreate, db: Session = Depends(get_db))
     slot = Availability(
         counsellors_id=data.counsellors_id,
         date=data.date,
+        day=data.day,
+        month=data.month,
         time_slot=data.time_slot,
         session_period=data.session_period.lower() 
     )
