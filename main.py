@@ -10,8 +10,21 @@ from routers.reviews import reviews_router
 from routers.availability import availability_router
 from routers.admins import admins_router
 
-# 🔹 Create tables
+# 🔹 Create tables & fix schema
 Base.metadata.create_all(bind=engine)
+
+# Auto-fix missing role column if it exists
+try:
+    from sqlalchemy import text
+    from db.database import SessionLocal
+    db_sync = SessionLocal()
+    db_sync.execute(text("ALTER TABLE counsellors ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'counsellor';"))
+    db_sync.execute(text("UPDATE counsellors SET role = 'counsellor' WHERE role IS NULL;"))
+    db_sync.commit()
+    db_sync.close()
+    print("✅ Database schema synchronized")
+except Exception as e:
+    print(f"⚠️ Schema sync hint: {e}")
 
 # 🔹 FastAPI app
 app = FastAPI()

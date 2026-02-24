@@ -156,9 +156,12 @@ def all_counsellors(db: Session = Depends(get_db)):
 
     counsellors_list = []
     for counsellor, reviews_count, rating in results:
-        # Convert model to dict to inject calculated fields
-        counsellor.reviews_count = reviews_count
-        counsellor.rating = round(rating, 1)
+        # Inject calculated fields safely
+        setattr(counsellor, 'reviews_count', reviews_count)
+        setattr(counsellor, 'rating', round(rating, 1))
+        # Ensure role is set even if DB column is missing (fallback)
+        if not hasattr(counsellor, 'role') or counsellor.role is None:
+            setattr(counsellor, 'role', 'counsellor')
         counsellors_list.append(counsellor)
 
     return counsellors_list
