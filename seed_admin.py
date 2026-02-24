@@ -12,7 +12,7 @@ from models.appointments import Appointments
 from models.messages import Messages
 from models.reviews import Reviews
 from models.availability import Availability
-from auth_utils import get_password_hash
+from utils.auth import hash_password
 
 def seed_admin():
     # 🔹 Step 1: Create tables if they don't exist
@@ -33,7 +33,7 @@ def seed_admin():
         new_admin = Admins(
             name="Counselly Admin",
             email=admin_email,
-            password=get_password_hash("Admin@123"),
+            password=hash_password("Admin@123"),
             role="admin"
         )
         db.add(new_admin)

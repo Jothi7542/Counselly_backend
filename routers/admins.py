@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from dependencies import get_db
 from models.admins import Admins
 from schemas.admins import AdminCreate, AdminLogin, AdminTokenResponse
-from auth_utils import get_password_hash, verify_password, create_access_token
+from utils.auth import hash_password, verify_password, create_access_token
 
 admins_router = APIRouter(
     prefix="/admins",
@@ -20,7 +20,7 @@ def signup(data: AdminCreate, db: Session = Depends(get_db)):
     new_admin = Admins(
         name=data.name,
         email=data.email,
-        password=get_password_hash(data.password),
+        password=hash_password(data.password),
         role="admin"
     )
     db.add(new_admin)

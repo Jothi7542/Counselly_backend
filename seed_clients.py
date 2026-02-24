@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker
 from models.clients import Clients
 from models.appointments import Appointments
 from models.counsellors import Counsellors
-from auth_utils import get_password_hash
+from utils.auth import hash_password
 from datetime import date
 import os
 
@@ -24,7 +24,7 @@ try:
         client1 = Clients(
             name="Meera",
             email="meera@example.com",
-            password=get_password_hash("password123"),
+            password=hash_password("password123"),
             role="client",
             age=25,
             gender="Female"
@@ -32,7 +32,7 @@ try:
         client2 = Clients(
             name="Kaviya",
             email="kaviya@example.com",
-            password=get_password_hash("password123"),
+            password=hash_password("password123"),
             role="client",
             age=28,
             gender="Female"

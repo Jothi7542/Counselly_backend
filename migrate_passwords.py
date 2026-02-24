@@ -1,7 +1,7 @@
 from db.database import SessionLocal
 from models.clients import Clients
 from models.counsellors import Counsellors
-from auth_utils import get_password_hash
+from utils.auth import hash_password
 
 def migrate_passwords():
     db = SessionLocal()
@@ -13,7 +13,7 @@ def migrate_passwords():
             # Check if already hashed (bcrypt hashes start with $2b$ or $2a$)
             if not client.password.startswith("$2b$"):
                 print(f"Hashing password for client: {client.email}")
-                client.password = get_password_hash(client.password)
+                client.password = hash_password(client.password)
         
         # Migrate Counsellors
         counsellors = db.query(Counsellors).all()
@@ -21,7 +21,7 @@ def migrate_passwords():
         for counsellor in counsellors:
             if not counsellor.password.startswith("$2b$"):
                 print(f"Hashing password for counsellor: {counsellor.email}")
-                counsellor.password = get_password_hash(counsellor.password)
+                counsellor.password = hash_password(counsellor.password)
         
         db.commit()
         print("Migration complete!")
