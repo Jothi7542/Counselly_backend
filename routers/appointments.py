@@ -18,6 +18,7 @@ from schemas.appointments import (
     AppointmentUpdate,
     AppointmentResponseUpdate
 )
+from utils.mailer import send_rejection_email
 
 appointments_router = APIRouter(
     prefix="/appointments",
@@ -53,7 +54,7 @@ def create_appointment(
         therapy_type=data.therapy_type,
         reason=data.reason,
 
-        status=AppointmentStatus.booked.value,         
+        status=AppointmentStatus.pending.value,         
         counsellor_response=CounsellorResponse.pending.value
     )
 
@@ -129,13 +130,35 @@ def counsellor_response(
     appointment.counsellor_response = data.response
 
    
-    if data.response == CounsellorResponse.rejected.value:
+    if data.response in [CounsellorResponse.rejected.value, "cancelled"]:
+        appointment.status = AppointmentStatus.rejected.value if data.response == CounsellorResponse.rejected.value else AppointmentStatus.cancelled.value
         availability = db.query(Availability).filter(
             Availability.availability_id == appointment.availability_id
         ).first()
 
         if availability:
             availability.is_booked = False
+        
+        # Notify the client
+        try:
+            from models.clients import Clients
+            from models.counsellors import Counsellors
+            client = db.query(Clients).filter(Clients.clients_id == appointment.clients_id).first()
+            counsellor = db.query(Counsellors).filter(Counsellors.counsellors_id == appointment.counsellors_id).first()
+            
+            if client and counsellor:
+                send_rejection_email(
+                    client_email=client.email,
+                    client_name=client.name,
+                    counsellor_name=counsellor.name,
+                    date=str(appointment.date),
+                    time=appointment.time
+                )
+        except Exception as e:
+            print(f"Failed to send rejection email: {e}")
+            
+    elif data.response == CounsellorResponse.accepted.value:
+        appointment.status = AppointmentStatus.booked.value
 
     db.commit()
     db.refresh(appointment)

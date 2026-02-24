@@ -16,13 +16,21 @@ Base.metadata.create_all(bind=engine)
 # 🔹 FastAPI app
 app = FastAPI()
 
-# 🔥 CORS MIDDLEWARE (VERY IMPORTANT)
+# 🔥 CORS MIDDLEWARE (VERY IMPORTANT) 
+origins = [
+    "http://localhost:8000",
+    "http://localhost:5500",
+    "http://127.0.0.1:8000",
+    "http://127.0.0.1:5500",
+    "https://counselly-frontend.vercel.app"
+]
+
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
+    CORSMiddleware, 
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"], 
+    allow_headers=["*"],  
 )
 
 # 🔹 Routers

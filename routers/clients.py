@@ -1,9 +1,9 @@
-from fastapi import APIRouter , Depends
+from fastapi import APIRouter , Depends, HTTPException
 from sqlalchemy.orm import Session
 from dependencies import get_db
 from models.clients import Clients
 from schemas.clients import ClientsCreate,ClientUpdate,Signup,Login, TokenResponse
-from auth_utils import get_password_hash, verify_password, create_access_token
+from utils.auth import hash_password, verify_password, create_access_token
 
 clients_router=APIRouter(
     prefix="/clients",
@@ -12,44 +12,77 @@ clients_router=APIRouter(
 
 @clients_router.post("/signup", response_model=TokenResponse)
 def signup(clients:Signup ,db:Session=Depends(get_db)):
-    new_client=Clients(
-       name=clients.name,
-       email=clients.email,
-       password=get_password_hash(clients.password),
-       role="client",
-       age=clients.age,
-       gender=clients.gender,
-       phone_number=clients.phone_number,
-       language=clients.language,
-       address=clients.address
-    )
-    db.add(new_client)
-    db.commit()
-    db.refresh(new_client)
-    
-    access_token = create_access_token(data={"sub": new_client.email, "role": "client"})
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": new_client
-    }
-
-from fastapi import HTTPException
+    import traceback
+    try:
+        # Check if email already exists
+        existing_client = db.query(Clients).filter(Clients.email == clients.email).first()
+        if existing_client:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        new_client=Clients(
+           name=clients.name,
+           email=clients.email,
+           password=hash_password(clients.password),  # Hash the password
+           role="client",
+           age=clients.age,
+           gender=clients.gender,
+           phone_number=clients.phone_number,
+           language=clients.language,
+           address=clients.address,
+           profile_image=getattr(clients, 'profile_image', None)
+        )
+        db.add(new_client)
+        db.commit()
+        db.refresh(new_client)
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": str(new_client.clients_id), "role": "client"}
+        )
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": new_client
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"SIGNUP ERROR: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @clients_router.post("/login", response_model=TokenResponse)
 def login(data: Login, db: Session = Depends(get_db)):
-    client = db.query(Clients).filter(Clients.email == data.email).first()
+    import traceback
+    try:
+        client = db.query(Clients).filter(
+            Clients.email == data.email
+        ).first()
 
-    if not client or not verify_password(data.password, client.password):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        if not client:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        # Verify password
+        if not verify_password(data.password, client.password):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": str(client.clients_id), "role": "client"}
+        )
 
-    access_token = create_access_token(data={"sub": client.email, "role": "client"})
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": client
-    }
-
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": client
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"LOGIN ERROR: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @clients_router.post("/create")
 def add_clients(clients: ClientsCreate, db: Session = Depends(get_db)):
@@ -57,7 +90,7 @@ def add_clients(clients: ClientsCreate, db: Session = Depends(get_db)):
         clients_id=clients.clients_id,
         name=clients.name,
         email=clients.email,
-        password=get_password_hash(clients.password),
+        password=hash_password(clients.password),
         age=clients.age,
         gender=clients.gender,
         phone_number=clients.phone_number,
@@ -102,8 +135,7 @@ def update_clients(
     update_data = data.dict(exclude_unset=True)
 
     if "password" in update_data:
-        update_data["password"] = get_password_hash(update_data["password"])
-
+        update_data["password"] = hash_password(update_data["password"])
     for field, value in update_data.items():
         setattr(client, field, value)
 
@@ -136,19 +168,33 @@ def upcoming_sessions(client_id: int, db: Session = Depends(get_db)):
             Appointments.mode,
             Appointments.session_period,
             Appointments.therapy_type,
+            Appointments.status,
             Counsellors.name.label("counsellor_name"),
             Counsellors.profile_image.label("counsellor_photo")
         )
         .join(Counsellors, Counsellors.counsellors_id == Appointments.counsellors_id)
         .filter(
             Appointments.clients_id == client_id,
-            Appointments.status == AppointmentStatus.booked.value
+            Appointments.status.in_([AppointmentStatus.booked.value, AppointmentStatus.pending.value])
 
         )
         .all()
     )
 
-    return sessions
+    return [
+        {
+            "appointment_id": s.appointment_id,
+            "date": s.date,
+            "time": s.time,
+            "mode": s.mode,
+            "session_period": s.session_period,
+            "therapy_type": s.therapy_type,
+            "status": s.status,
+            "counsellor_name": s.counsellor_name,
+            "counsellor_photo": s.counsellor_photo
+        }
+        for s in sessions
+    ]
 
 @clients_router.get("/{client_id}/completed-sessions")
 def completed_sessions(client_id: int, db: Session = Depends(get_db)):
@@ -173,5 +219,17 @@ def completed_sessions(client_id: int, db: Session = Depends(get_db)):
         .all()
     )
 
-    return sessions
+    return [
+        {
+            "appointment_id": s.appointment_id,
+            "date": s.date,
+            "time": s.time,
+            "mode": s.mode,
+            "session_period": s.session_period,
+            "therapy_type": s.therapy_type,
+            "counsellor_name": s.counsellor_name,
+            "counsellor_photo": s.counsellor_photo
+        }
+        for s in sessions
+    ]
 

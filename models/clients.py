@@ -12,6 +12,7 @@ class Clients(Base):
     role=Column(String)
     age=Column(Integer)
     gender=Column(String)
+    profile_image = Column(String)
     phone_number=Column(String)
     language=Column(JSON)
     status = Column(String, default="active")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter , Depends ,HTTPException
+from fastapi import APIRouter , Depends ,HTTPException, File, UploadFile
 from sqlalchemy.orm import Session
 from dependencies import get_db
 from models.counsellors import Counsellors
@@ -13,6 +13,11 @@ from models.clients import Clients
 from models.appointments import AppointmentStatus
 from models.availability import Availability
 from models.reviews import Reviews
+from utils.auth import hash_password, verify_password, create_access_token
+from utils.cloudinary_utils import upload_image
+import shutil
+import tempfile
+import os
 
 
 counsellors_router=APIRouter(
@@ -20,12 +25,48 @@ counsellors_router=APIRouter(
     tags=["Counsellors"]
 )
 
+@counsellors_router.post("/upload-profile-image/{counsellor_id}")
+async def upload_profile_image(counsellor_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    counsellor = db.query(Counsellors).filter(Counsellors.counsellors_id == counsellor_id).first()
+    if not counsellor:
+        raise HTTPException(status_code=404, detail="Counsellor not found")
+    
+    try:
+        # Create a temporary file to store the upload
+        suffix = os.path.splitext(file.filename)[1]
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            shutil.copyfileobj(file.file, tmp)
+            tmp_path = tmp.name
+        
+        # Upload to Cloudinary
+        image_url = upload_image(tmp_path)
+        
+        # Remove temporary file
+        os.remove(tmp_path)
+        
+        if not image_url:
+            raise HTTPException(status_code=500, detail="Failed to upload image to Cloudinary")
+        
+        # Update counsellor database
+        counsellor.profile_image = image_url
+        db.commit()
+        db.refresh(counsellor)
+        
+        return {"image_url": image_url, "message": "Profile image updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
+
 @counsellors_router.post("/signup", response_model=TokenResponse)
 def signup(counsellors: Signup, db: Session = Depends(get_db)):
+    # Check if email already exists
+    existing_counsellor = db.query(Counsellors).filter(Counsellors.email == counsellors.email).first()
+    if existing_counsellor:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
     new_counsellor = Counsellors(
         name=counsellors.name,
         email=counsellors.email,
-        password=get_password_hash(counsellors.password),
+        password=hash_password(counsellors.password),  # Hash the password
         role="counsellor",
         age=counsellors.age,
         gender=counsellors.gender,
@@ -33,12 +74,19 @@ def signup(counsellors: Signup, db: Session = Depends(get_db)):
         speaks=counsellors.speaks,
         experience=counsellors.experience,
         address=counsellors.address,
+        specialization=getattr(counsellors, 'specialization', "Counselling Psychologist"),
+        profile_image=getattr(counsellors, 'profile_image', None),
+        about=getattr(counsellors, 'about', None)
     )
     db.add(new_counsellor)
     db.commit()
     db.refresh(new_counsellor)
     
-    access_token = create_access_token(data={"sub": new_counsellor.email, "role": "counsellor"})
+    # Create access token
+    access_token = create_access_token(
+        data={"sub": str(new_counsellor.counsellors_id), "role": "counsellor"}
+    )
+    
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -47,18 +95,27 @@ def signup(counsellors: Signup, db: Session = Depends(get_db)):
 
 @counsellors_router.post("/login", response_model=TokenResponse)
 def login(data: Login, db: Session = Depends(get_db)):
-    counsellor = db.query(Counsellors).filter(Counsellors.email == data.email).first()
+    counsellor = db.query(Counsellors).filter(
+        Counsellors.email == data.email
+    ).first()
 
-    if not counsellor or not verify_password(data.password, counsellor.password):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not counsellor:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Verify password
+    if not verify_password(data.password, counsellor.password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Create access token
+    access_token = create_access_token(
+        data={"sub": str(counsellor.counsellors_id), "role": "counsellor"}
+    )
 
-    access_token = create_access_token(data={"sub": counsellor.email, "role": "counsellor"})
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user": counsellor
     }
-
 
 @counsellors_router.post("/create")
 def add_counsellors(counsellors: CounsellorsCreate, db: Session = Depends(get_db)):
@@ -66,7 +123,7 @@ def add_counsellors(counsellors: CounsellorsCreate, db: Session = Depends(get_db
         counsellors_id=counsellors.counsellors_id,
         name=counsellors.name,
         email=counsellors.email,
-        password=get_password_hash(counsellors.password),
+        password=hash_password(counsellors.password),
         age=counsellors.age,
         gender=counsellors.gender,
         phone_number=counsellors.phone_number,
@@ -101,10 +158,9 @@ def all_counsellors(db: Session = Depends(get_db)):
     counsellors_list = []
     for counsellor, reviews_count, rating in results:
         # Convert model to dict to inject calculated fields
-        c_dict = {c.name: getattr(counsellor, c.name) for c in counsellor.__table__.columns}
-        c_dict["reviews_count"] = reviews_count
-        c_dict["rating"] = round(rating, 1)
-        counsellors_list.append(c_dict)
+        counsellor.reviews_count = reviews_count
+        counsellor.rating = round(rating, 1)
+        counsellors_list.append(counsellor)
 
     return counsellors_list
 
@@ -133,14 +189,13 @@ def search_counsellors(
 
     counsellors_list = []
     for counsellor, reviews_count, rating in results:
-        c_dict = {c.name: getattr(counsellor, c.name) for c in counsellor.__table__.columns}
-        c_dict["reviews_count"] = reviews_count
-        c_dict["rating"] = round(rating, 1)
-        counsellors_list.append(c_dict)
+        counsellor.reviews_count = reviews_count
+        counsellor.rating = round(rating, 1)
+        counsellors_list.append(counsellor)
 
     return counsellors_list
 
-@counsellors_router.get("/{counsellor_id}", response_model=CounsellorsResponse)
+@counsellors_router.get("/{counsellor_id}")
 def counsellors_id(counsellor_id:int , db:Session=Depends(get_db)):
     already_counsellors=db.query(Counsellors).filter(Counsellors.counsellors_id==counsellor_id).first()
     return already_counsellors
@@ -161,8 +216,7 @@ def update_counsellor(
     update_data = data.dict(exclude_unset=True)
 
     if "password" in update_data:
-        update_data["password"] = get_password_hash(update_data["password"])
-
+        update_data["password"] = hash_password(update_data["password"])
     for field, value in update_data.items():
         setattr(counsellor, field, value)
 
@@ -219,7 +273,6 @@ def counsellor_stats(counsellor_id: int, db: Session = Depends(get_db)):
         Appointments.counsellors_id == counsellor_id
     ).count()
 
-
     return {
         "total_sessions": total_sessions,
         "upcoming_sessions": upcoming_sessions,
@@ -228,22 +281,110 @@ def counsellor_stats(counsellor_id: int, db: Session = Depends(get_db)):
 @counsellors_router.get("/{counsellor_id}/upcoming-sessions")
 def upcoming_sessions(counsellor_id: int, db: Session = Depends(get_db)):
 
-    return (
-        db.query(
-            Appointments.date,
-            Appointments.time,
-            Clients.name.label("client_name"),
-            Appointments.mode,
-            Appointments.counsellor_response
+@counsellors_router.get("/{counsellor_id}/upcoming-sessions")
+def upcoming_sessions(counsellor_id: int, db: Session = Depends(get_db)):
+    try:
+        results = (
+            db.query(
+                Appointments.appointment_id,
+                Appointments.date,
+                Appointments.time,
+                Clients.name.label("client_name"),
+                Appointments.mode,
+                Appointments.counsellor_response
+            )
+            .join(Clients, Clients.clients_id == Appointments.clients_id)
+            .filter(
+                Appointments.counsellors_id == counsellor_id,
+                Appointments.status == AppointmentStatus.booked.value
+            )
+            .all()
         )
-        .join(Clients, Clients.clients_id == Appointments.clients_id)
-        .filter(
-            Appointments.counsellors_id == counsellor_id,
-            Appointments.status == AppointmentStatus.booked.value
-        )
-        .all()
-    )
+        return [
+            {
+                "appointment_id": res.appointment_id,
+                "date": str(res.date),
+                "time": res.time,
+                "client_name": res.client_name,
+                "mode": res.mode,
+                "counsellor_response": res.counsellor_response
+            }
+            for res in results
+        ]
+    except Exception as e:
+        print(f"ERROR in upcoming_sessions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
+@counsellors_router.get("/{counsellor_id}/requests")
+def session_requests(counsellor_id: int, db: Session = Depends(get_db)):
+    try:
+        results = (
+            db.query(
+                Appointments.appointment_id,
+                Appointments.date,
+                Appointments.time,
+                Clients.name.label("client_name"),
+                Appointments.mode,
+                Appointments.counsellor_response,
+                Appointments.status
+            )
+            .join(Clients, Clients.clients_id == Appointments.clients_id)
+            .filter(
+                Appointments.counsellors_id == counsellor_id,
+                Appointments.status == AppointmentStatus.pending.value
+            )
+            .all()
+        )
+        return [
+            {
+                "appointment_id": res.appointment_id,
+                "date": str(res.date),
+                "time": res.time,
+                "client_name": res.client_name,
+                "mode": res.mode,
+                "counsellor_response": res.counsellor_response,
+                "status": res.status
+            }
+            for res in results
+        ]
+
+    except Exception as e:
+        print(f"ERROR: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@counsellors_router.get("/{counsellor_id}/completed-sessions")
+def completed_sessions(counsellor_id: int, db: Session = Depends(get_db)):
+    try:
+        results = (
+            db.query(
+                Appointments.appointment_id,
+                Appointments.date,
+                Appointments.time,
+                Clients.name.label("client_name"),
+                Appointments.mode,
+                Appointments.status
+            )
+            .join(Clients, Clients.clients_id == Appointments.clients_id)
+            .filter(
+                Appointments.counsellors_id == counsellor_id,
+                Appointments.status == AppointmentStatus.completed.value
+            )
+            .all()
+        )
+        return [
+            {
+                "appointment_id": res.appointment_id,
+                "date": str(res.date),
+                "time": res.time,
+                "client_name": res.client_name,
+                "mode": res.mode,
+                "status": res.status
+            }
+            for res in results
+        ]
+    except Exception as e:
+        print(f"ERROR in completed_sessions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @counsellors_router.get("/{counsellor_id}/clients")
 def get_counsellor_clients(counsellor_id: int, db: Session = Depends(get_db)):

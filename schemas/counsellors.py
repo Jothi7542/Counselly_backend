@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import List, Any
+from typing import List, Optional
 
 class CounsellorsCreate(BaseModel):
     counsellors_id: int
@@ -53,20 +53,23 @@ class Signup(BaseModel):
     speaks: List[str]
     experience: int
     address: str
+    specialization: Optional[str] = "Counselling Psychologist"
+    profile_image: Optional[str] = None
+    about: Optional[str] = None
 
 class CounsellorsResponse(BaseModel):
-    counsellors_id: int | None
-    name: Any = None
-    email: Any = None
-    specialization: Any = None
-    experience: Any = None
-    expertise: Any = None
-    mode: Any = None
-    speaks: Any = None
-    status: Any = None
-    profile_image: Any = None
-    rating: float = 0.0
-    reviews_count: int = 0
+    counsellors_id: int
+    name: str
+    email: str
+    specialization: str
+    experience: str
+    expertise: List[str]
+    mode: List[str]
+    speaks: List[str]
+    status: str
+    profile_image: str | None = None
+    rating: float | None = 0.0
+    reviews_count: int | None = 0
 
     class Config:
         from_attributes = True
@@ -75,7 +78,6 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str
     user: CounsellorsResponse
-
 class CounsellorCardResponse(BaseModel):
     counsellors_id: int
     name: str

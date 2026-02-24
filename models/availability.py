@@ -8,8 +8,8 @@ class Availability(Base):
     counsellors_id = Column(Integer, ForeignKey("counsellors.counsellors_id"))
     
     date = Column(Date, nullable=False)
-    # day = Column(String, nullable=False)      
-    # month = Column(String, nullable=False)
+    day = Column(String, nullable=False)      
+    month = Column(String, nullable=False)
     time_slot = Column(String, nullable=False)  
     session_period = Column(String, nullable=False)
 
