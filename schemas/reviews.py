@@ -5,6 +5,7 @@ from datetime import datetime
 class ReviewCreate(BaseModel):
     clients_id: int
     counsellors_id: int
+    appointment_id: int
     rating: int
     comments: str 
 
@@ -13,6 +14,7 @@ class ReviewResponse(BaseModel):
     review_id: int
     clients_id: int
     counsellors_id: int
+    appointment_id: int
     rating: int
     comments: str 
     is_active:bool

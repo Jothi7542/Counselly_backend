@@ -8,6 +8,7 @@ class Reviews(Base):
 
     clients_id = Column(Integer, ForeignKey("clients.clients_id"), nullable=False)
     counsellors_id = Column(Integer, ForeignKey("counsellors.counsellors_id"), nullable=False)
+    appointment_id = Column(Integer, ForeignKey("appointments.appointment_id"), nullable=True)
 
     rating = Column(Integer, nullable=False)
     comments = Column(String)

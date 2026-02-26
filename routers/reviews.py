@@ -16,6 +16,7 @@ reviews_router = APIRouter(
 def create_review(review: ReviewCreate, db: Session = Depends(get_db)):
     new_review = Reviews(
         clients_id=review.clients_id,
+        appointment_id=review.appointment_id,
         counsellors_id=review.counsellors_id,
         rating=review.rating,
         comments=review.comments
