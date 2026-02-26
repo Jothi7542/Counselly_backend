@@ -24,9 +24,11 @@ try:
     # Fix clients
     db_sync.execute(text("ALTER TABLE clients ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'client';"))
     db_sync.execute(text("UPDATE clients SET role = 'client' WHERE role IS NULL;"))
+    # Fix reviews table
+    db_sync.execute(text("ALTER TABLE reviews ADD COLUMN IF NOT EXISTS appointment_id INTEGER REFERENCES appointments(appointment_id);"))
     db_sync.commit()
     db_sync.close()
-    print("✅ Database schema synchronized for counsellors and clients")
+    print("✅ Database schema synchronized for counsellors, clients and reviews")
 except Exception as e:
     print(f"⚠️ Schema sync hint: {e}")
 
