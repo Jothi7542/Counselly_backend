@@ -163,6 +163,7 @@ def upcoming_sessions(client_id: int, db: Session = Depends(get_db)):
     sessions = (
         db.query(
             Appointments.appointment_id,
+            Appointments.counsellors_id,
             Appointments.date,
             Appointments.time,
             Appointments.mode,
@@ -184,6 +185,7 @@ def upcoming_sessions(client_id: int, db: Session = Depends(get_db)):
     return [
         {
             "appointment_id": s.appointment_id,
+            "counsellors_id": s.counsellors_id,
             "date": s.date,
             "time": s.time,
             "mode": s.mode,
@@ -202,6 +204,7 @@ def completed_sessions(client_id: int, db: Session = Depends(get_db)):
     sessions = (
         db.query(
             Appointments.appointment_id,
+            Appointments.counsellors_id,
             Appointments.date,
             Appointments.time,
             Appointments.mode,
@@ -222,6 +225,7 @@ def completed_sessions(client_id: int, db: Session = Depends(get_db)):
     return [
         {
             "appointment_id": s.appointment_id,
+            "counsellors_id": s.counsellors_id,
             "date": s.date,
             "time": s.time,
             "mode": s.mode,
