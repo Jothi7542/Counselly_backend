@@ -56,6 +56,10 @@ async def upload_profile_image(counsellor_id: int, file: UploadFile = File(...),
 
 @counsellors_router.post("/signup", response_model=TokenResponse)
 def signup(counsellors: Signup, db: Session = Depends(get_db)):
+    # Strip whitespace from inputs
+    counsellors.email = counsellors.email.strip().lower()
+    counsellors.password = counsellors.password.strip()
+
     # Check if email already exists
     existing_counsellor = db.query(Counsellors).filter(Counsellors.email == counsellors.email).first()
     if existing_counsellor:
@@ -95,15 +99,19 @@ def signup(counsellors: Signup, db: Session = Depends(get_db)):
 
 @counsellors_router.post("/login", response_model=TokenResponse)
 def login(data: Login, db: Session = Depends(get_db)):
+    # Strip whitespace from inputs
+    email = data.email.strip().lower()
+    password = data.password.strip()
+
     counsellor = db.query(Counsellors).filter(
-        Counsellors.email == data.email
+        Counsellors.email == email
     ).first()
 
     if not counsellor:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     # Verify password
-    if not verify_password(data.password, counsellor.password):
+    if not verify_password(password, counsellor.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     # Create access token

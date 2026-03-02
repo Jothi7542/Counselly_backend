@@ -12,8 +12,12 @@ admins_router = APIRouter(
 
 @admins_router.post("/signup", response_model=AdminTokenResponse)
 def signup(data: AdminCreate, db: Session = Depends(get_db)):
+    # Strip whitespace from inputs
+    email = data.email.strip().lower()
+    password = data.password.strip()
+
     # Check if email exists
-    existing = db.query(Admins).filter(Admins.email == data.email).first()
+    existing = db.query(Admins).filter(Admins.email == email).first()
     if existing:
        raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -36,9 +40,13 @@ def signup(data: AdminCreate, db: Session = Depends(get_db)):
 
 @admins_router.post("/login", response_model=AdminTokenResponse)
 def login(data: AdminLogin, db: Session = Depends(get_db)):
-    admin = db.query(Admins).filter(Admins.email == data.email).first()
+    # Strip whitespace from inputs
+    email = data.email.strip().lower()
+    password = data.password.strip()
 
-    if not admin or not verify_password(data.password, admin.password):
+    admin = db.query(Admins).filter(Admins.email == email).first()
+
+    if not admin or not verify_password(password, admin.password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     access_token = create_access_token(data={"sub": admin.email, "role": "admin"})

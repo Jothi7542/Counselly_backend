@@ -14,8 +14,12 @@ clients_router=APIRouter(
 def signup(clients:Signup ,db:Session=Depends(get_db)):
     import traceback
     try:
+        # Strip whitespace from inputs
+        email = clients.email.strip().lower()
+        password = clients.password.strip()
+
         # Check if email already exists
-        existing_client = db.query(Clients).filter(Clients.email == clients.email).first()
+        existing_client = db.query(Clients).filter(Clients.email == email).first()
         if existing_client:
             raise HTTPException(status_code=400, detail="Email already registered")
         
@@ -56,15 +60,19 @@ def signup(clients:Signup ,db:Session=Depends(get_db)):
 def login(data: Login, db: Session = Depends(get_db)):
     import traceback
     try:
+        # Strip whitespace from inputs
+        email = data.email.strip().lower()
+        password = data.password.strip()
+
         client = db.query(Clients).filter(
-            Clients.email == data.email
+            Clients.email == email
         ).first()
 
         if not client:
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
         # Verify password
-        if not verify_password(data.password, client.password):
+        if not verify_password(password, client.password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
         # Create access token
