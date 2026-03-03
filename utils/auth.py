@@ -21,7 +21,7 @@ security = HTTPBearer()
 
 
 def hash_password(password: str) -> str:
-    print("🚀 NEW HASH FUNCTION DEPLOYED")
+    print("NEW HASH FUNCTION DEPLOYED")
 
     password = password.strip()
     password_bytes = password.encode("utf-8")
