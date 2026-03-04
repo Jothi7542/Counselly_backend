@@ -28,6 +28,16 @@ def submit_contact(contact: ContactCreate, db: Session = Depends(get_db)):
 
 @contact_router.get("/all", response_model=List[ContactResponse])
 def get_contact_messages(db: Session = Depends(get_db)):
-    # This should be protected by admin role in a real scenario
     messages = db.query(ContactMessage).order_by(ContactMessage.created_at.desc()).all()
     return messages
+
+@contact_router.put("/{contact_id}/status", response_model=ContactResponse)
+def update_contact_status(contact_id: int, status: str, db: Session = Depends(get_db)):
+    msg = db.query(ContactMessage).filter(ContactMessage.id == contact_id).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+    
+    msg.status = status
+    db.commit()
+    db.refresh(msg)
+    return msg
