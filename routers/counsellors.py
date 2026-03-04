@@ -276,11 +276,9 @@ def counsellor_stats(counsellor_id: int, db: Session = Depends(get_db)):
         Appointments.date >= today
     ).count()
 
-    total_clients = db.query(
-        distinct(Appointments.clients_id)
-    ).filter(
+    total_clients = db.query(func.count(Appointments.clients_id.distinct())).filter(
         Appointments.counsellors_id == counsellor_id
-    ).count()
+    ).scalar() or 0
 
     return {
         "total_sessions": total_sessions,
