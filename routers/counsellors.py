@@ -294,6 +294,7 @@ def upcoming_sessions(counsellor_id: int, db: Session = Depends(get_db)):
                 Appointments.date,
                 Appointments.time,
                 Clients.name.label("client_name"),
+                Clients.email.label("client_email"),
                 Appointments.mode,
                 Appointments.counsellor_response
             )
@@ -310,6 +311,7 @@ def upcoming_sessions(counsellor_id: int, db: Session = Depends(get_db)):
                 "date": str(res.date),
                 "time": res.time,
                 "client_name": res.client_name,
+                "client_email": res.client_email,
                 "mode": res.mode,
                 "counsellor_response": res.counsellor_response
             }
@@ -328,6 +330,7 @@ def session_requests(counsellor_id: int, db: Session = Depends(get_db)):
                 Appointments.date,
                 Appointments.time,
                 Clients.name.label("client_name"),
+                Clients.email.label("client_email"),
                 Appointments.mode,
                 Appointments.counsellor_response,
                 Appointments.status
@@ -345,6 +348,7 @@ def session_requests(counsellor_id: int, db: Session = Depends(get_db)):
                 "date": str(res.date),
                 "time": res.time,
                 "client_name": res.client_name,
+                "client_email": res.client_email,
                 "mode": res.mode,
                 "counsellor_response": res.counsellor_response,
                 "status": res.status
@@ -365,6 +369,7 @@ def completed_sessions(counsellor_id: int, db: Session = Depends(get_db)):
                 Appointments.date,
                 Appointments.time,
                 Clients.name.label("client_name"),
+                Clients.email.label("client_email"),
                 Appointments.mode,
                 Appointments.status
             )
@@ -381,6 +386,7 @@ def completed_sessions(counsellor_id: int, db: Session = Depends(get_db)):
                 "date": str(res.date),
                 "time": res.time,
                 "client_name": res.client_name,
+                "client_email": res.client_email,
                 "mode": res.mode,
                 "status": res.status
             }
