@@ -9,8 +9,10 @@ from routers.messages import messages_router
 from routers.reviews import reviews_router
 from routers.availability import availability_router
 from routers.admins import admins_router
+from routers.contact import contact_router
 
 # 🔹 Create tables & fix schema
+from models.contact import ContactMessage
 Base.metadata.create_all(bind=engine)
 
 # Auto-fix missing role column if it exists
@@ -60,6 +62,7 @@ app.include_router(messages_router)
 app.include_router(reviews_router)
 app.include_router(availability_router)
 app.include_router(admins_router)
+app.include_router(contact_router)
 
 # 🔹 Health check
 @app.get("/")
