@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from dependencies import get_db
 from models.clients import Clients
 from schemas.clients import ClientsCreate,ClientUpdate,Signup,Login, TokenResponse
+from models.appointments import Appointments, AppointmentStatus
+from models.counsellors import Counsellors
 from utils.auth import hash_password, verify_password, create_access_token
 
 clients_router=APIRouter(
@@ -14,11 +16,11 @@ clients_router=APIRouter(
 def signup(clients:Signup ,db:Session=Depends(get_db)):
     import traceback
     try:
-        # Strip whitespace from inputs
+        
         email = clients.email.strip().lower()
         password = clients.password.strip()
 
-        # Check if email already exists
+     
         existing_client = db.query(Clients).filter(Clients.email == email).first()
         if existing_client:
             raise HTTPException(status_code=400, detail="Email already registered")
@@ -26,7 +28,7 @@ def signup(clients:Signup ,db:Session=Depends(get_db)):
         new_client=Clients(
            name=clients.name,
            email=clients.email,
-           password=hash_password(clients.password),  # Hash the password
+           password=hash_password(clients.password),  
            role="client",
            age=clients.age,
            gender=clients.gender,
@@ -39,7 +41,7 @@ def signup(clients:Signup ,db:Session=Depends(get_db)):
         db.commit()
         db.refresh(new_client)
         
-        # Create access token
+        
         access_token = create_access_token(
             data={"sub": str(new_client.clients_id), "role": "client"}
         )
@@ -60,7 +62,7 @@ def signup(clients:Signup ,db:Session=Depends(get_db)):
 def login(data: Login, db: Session = Depends(get_db)):
     import traceback
     try:
-        # Strip whitespace from inputs
+        
         email = data.email.strip().lower()
         password = data.password.strip()
 
@@ -71,11 +73,11 @@ def login(data: Login, db: Session = Depends(get_db)):
         if not client:
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
-        # Verify password
+       
         if not verify_password(password, client.password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
-        # Create access token
+        
         access_token = create_access_token(
             data={"sub": str(client.clients_id), "role": "client"}
         )
@@ -125,7 +127,6 @@ def clients_id(clients_id:int , db:Session=Depends(get_db)):
     db.close()
     return already_clients
 
-from fastapi import HTTPException
 
 @clients_router.put("/update/{clients_id}")
 def update_clients(
@@ -161,9 +162,6 @@ def delete_clients(clients_id:int , db:Session=Depends(get_db)):
         return {"message": "Clients deleted successfully"}
     return {"message": "Clients not found"}
         
-
-from models.appointments import Appointments, AppointmentStatus
-from models.counsellors import Counsellors
 
 @clients_router.get("/{client_id}/upcoming-sessions")
 def upcoming_sessions(client_id: int, db: Session = Depends(get_db)):

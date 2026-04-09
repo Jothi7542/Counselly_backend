@@ -9,5 +9,5 @@ class ContactMessage(Base):
     name = Column(String, nullable=False)
     email = Column(String, nullable=False)
     message = Column(String, nullable=False)
-    status = Column(String, default="pending")  # pending, reviewed, archived
+    status = Column(String, default="pending") 
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -84,9 +84,9 @@ class CounsellorCardResponse(BaseModel):
     counsellors_id: int
     name: str
     profile_image: str | None
-    experience: str              # "3.5 years of experience"
-    rating: float                # ⭐⭐⭐⭐
-    reviews_count: int           # (13 reviews)
+    experience: str              
+    rating: float                
+    reviews_count: int           
     speaks: List[str]
     mode: List[str]
     expertise: List[str]

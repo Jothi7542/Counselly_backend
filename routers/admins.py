@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from dependencies import get_db
 from models.admins import Admins
+from models.counsellors import Counsellors
 from schemas.admins import AdminCreate, AdminLogin, AdminTokenResponse
 from utils.auth import hash_password, verify_password, create_access_token
 
@@ -12,11 +13,11 @@ admins_router = APIRouter(
 
 @admins_router.post("/signup", response_model=AdminTokenResponse)
 def signup(data: AdminCreate, db: Session = Depends(get_db)):
-    # Strip whitespace from inputs
+ 
     email = data.email.strip().lower()
     password = data.password.strip()
 
-    # Check if email exists
+  
     existing = db.query(Admins).filter(Admins.email == email).first()
     if existing:
        raise HTTPException(status_code=400, detail="Email already registered")
@@ -40,7 +41,7 @@ def signup(data: AdminCreate, db: Session = Depends(get_db)):
 
 @admins_router.post("/login", response_model=AdminTokenResponse)
 def login(data: AdminLogin, db: Session = Depends(get_db)):
-    # Strip whitespace from inputs
+    
     email = data.email.strip().lower()
     password = data.password.strip()
 
@@ -56,7 +57,7 @@ def login(data: AdminLogin, db: Session = Depends(get_db)):
         "user": admin
     }
 
-from models.counsellors import Counsellors
+
 
 @admins_router.get("/review-queue")
 def get_review_queue(db: Session = Depends(get_db)):

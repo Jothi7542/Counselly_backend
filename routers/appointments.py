@@ -1,30 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-
 from dependencies import get_db
-
-from models.appointments import (
-    Mode,
-    SessionPeriod,
-    Appointments,
-    AppointmentStatus,
-    CounsellorResponse
-)
-
+from models.appointments import (Mode, SessionPeriod,Appointments,AppointmentStatus, CounsellorResponse)
 from models.availability import Availability
-
-from schemas.appointments import (
-    AppointmentsCreate,
-    AppointmentUpdate,
-    AppointmentResponseUpdate
-)
+from schemas.appointments import (AppointmentsCreate,AppointmentUpdate,AppointmentResponseUpdate)
 from utils.mailer import send_rejection_email
 
 appointments_router = APIRouter(
     prefix="/appointments",
     tags=["Appointments"]
 )
-
 
 @appointments_router.post("/new_appointment")
 def create_appointment(
@@ -139,7 +124,7 @@ def counsellor_response(
         if availability:
             availability.is_booked = False
         
-        # Notify the client
+        
         try:
             from models.clients import Clients
             from models.counsellors import Counsellors
